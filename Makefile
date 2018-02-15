@@ -1,8 +1,21 @@
-APP := usbeject
 CC := gcc
 
+PREFIX  := /usr/share/usbmount
+VERSION := 1.0.3
+COOKIE  := /run/usbmount
 
-all: $(APP)
+INFILES = usbmount@.service usbmount config.h
+
+SED = sed \
+	  -e "s|@PREFIX@|$(PREFIX)|g" \
+	  -e "s|@VERSION@|$(VERSION)|g" \
+	  -e "s|@COOKIE@|$(COOKIE)|g"
+
+all: $(INFILES) usbeject
+
+$(INFILES): %: %.in
+	@$(SED) $< > $@
+	@echo "GEN $@"
 
 CFLAGS := -MMD -MP
 
@@ -10,7 +23,8 @@ SRCS := $(usbeject.c)
 DEPS := $(SRCS:.c=.c.d)
 OBJS := $(SRCS:.c=.c.o)
 
-$(APP): $(APP).c.o
+
+usbeject: usbeject.c.o
 	@$(CC) -o $@ $^ $(LDFLAGS)
 	@echo "GEN $@"
 
@@ -20,7 +34,7 @@ $(APP): $(APP).c.o
 -include $(DEPS)
 
 clean:
-	$(RM) *.o *.d $(APP)
-	@echo "RM *.o *.d $(APP)"
+	@$(RM) *.o *.d usbeject $(INFILES)
+	@echo "RM *.o *.d usbeject $(INFILES)"
 
 .PHONY: all clean

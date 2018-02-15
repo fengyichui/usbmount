@@ -23,7 +23,7 @@ FILESYSTEMS=
 MOUNTOPTIONS=
 FS_MOUNTOPTIONS=
 VERBOSE=no
-COOKIE=/run/usbmount/
+COOKIE=@COOKIE@
 
 ######################################################################
 # Auxiliary functions

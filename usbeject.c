@@ -38,10 +38,10 @@ static int init(void)
         if (ent->d_type != DT_REG)
             continue;
         /* fstype devname mountpoint */
-        char fstype[RECORAD_LEN], devname[PATH_MAX], mountpoint[PATH_MAX];
+        char fstype[FSTYPE_LEN], devname[PATH_MAX], mountpoint[PATH_MAX];
         FILE *content;
-        char path[1024] = COOKIE"/";
-        strcat(path, ent->d_name);
+        char path[PATH_MAX] = COOKIE"/";
+        strncat(path, ent->d_name, PATH_MAX-strlen(path)-1);
 
         if (!(content = fopen(path, "r")))
             continue;
@@ -50,7 +50,7 @@ static int init(void)
         cookies[cookie_cnt].fstype      = strdup(fstype);
         cookies[cookie_cnt].devname     = strdup(devname);
         cookies[cookie_cnt].mountpoint  = strdup(mountpoint);
-        cookies[cookie_cnt].mounted       = 1;
+        cookies[cookie_cnt].mounted     = 1;
         fclose(content);
 
         cookie_cnt++;
@@ -99,13 +99,13 @@ static void help(void)
            "     <mountpoint>: a mountpoint\n"
            "     <no.>: number of list order\n"
            "If no argment given, eject all usb device.\n");
+    printf("%s version %s BSD-2\n", APP, APP_VER);
 }
 
 int main(int argc, char **argv)
 {
     init();
     char is_inter = 0;
-    char mountpoint[PATH_MAX];
     char opt;
 
     while (-1 != (opt = getopt(argc, argv, "hli"))) {

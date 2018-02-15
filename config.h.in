@@ -2,10 +2,10 @@
 #define CONFIG_H__
 
 #define COOKIE_MAX      128
-#define COOKIE          "/run/usbmount/"
-#define RECORAD_LEN     512
+#define COOKIE          "@COOKIE@"
+#define APP_VER         "@VERSION@"
 #define APP             "usbeject"
-#define APP_VER         "0.0.1"
+#define FSTYPE_LEN      64
 
 //#define DEBUG
 

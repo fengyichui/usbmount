@@ -1,0 +1,8 @@
+[Unit]
+Description=Auto Mount USB Drive on /dev/%i
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=@PREFIX@/usbmount add    %i
+ExecStop=@PREFIX@/usbmount  remove %i

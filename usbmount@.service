@@ -1,8 +1,0 @@
-[Unit]
-Description=Auto Mount USB Drive on /dev/%i
-
-[Service]
-Type=oneshot
-RemainAfterExit=true
-ExecStart=/usr/share/usbmount/usbmount add    %i
-ExecStop=/usr/share/usbmount/usbmount  remove %i
