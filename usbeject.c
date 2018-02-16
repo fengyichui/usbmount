@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <errno.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/mount.h>
@@ -17,6 +18,7 @@
 #endif
 
 struct cookie {
+    char *name;
     char *fstype;
     char *devname;
     char *mountpoint;
@@ -26,11 +28,66 @@ struct cookie {
 static struct cookie cookies[COOKIE_MAX];
 static int cookie_cnt;
 
+static char *strnstr(char const *str, int len, char const *pat)
+{
+    int i, j;
+    for (i = 0; i < len; i++) {
+        for (j = 0; i+j < len && '\0' != pat[j] && str[i+j] == pat[j]; j++)
+            ;
+        if ('\0' == pat[j])
+            return (char*)str+i;
+    }
+    return NULL;
+}
+
+static int isinteger(char  const *num)
+{
+    for (; isdigit(*num) && '\0' != *num; num++)
+        ;
+    return ('\0' == *num);
+}
+
+static int parse_cookie(char const *path, char *fstype, char *devname, char *mountpoint)
+{
+    int ret = 0;
+    int len;
+    FILE *content = fopen(path, "r");
+
+    struct string {
+        char *str;
+        int len;
+    } strs[] = {
+        {fstype, FSTYPE_LEN},
+        {devname, PATH_MAX},
+        {mountpoint, PATH_MAX},
+    };
+
+    for (int i = 0; i < 3; i++) {
+        if (!fgets(strs[i].str, strs[i].len, content)) {
+            ret = -1;
+            goto close;
+        }
+        len = strlen(strs[i].str);
+        if ('\n' != strs[i].str[len-1]) {
+            ret = -2;
+            goto close;
+        }
+
+        strs[i].str[len-1] = '\0';    /* remove '\n' */
+    }
+
+close:
+    fclose(content);
+    return ret;
+}
+
 static int init(void)
 {
+    int ret = 0;
     DIR *cookie_root = opendir(COOKIE);
     struct dirent *ent;
     if (!cookie_root) {
+        printf("%s: %s\n", COOKIE, strerror(errno));
         return -1;
     }
     cookie_cnt = 0;
@@ -43,22 +100,24 @@ static int init(void)
         char path[PATH_MAX] = COOKIE"/";
         strncat(path, ent->d_name, PATH_MAX-strlen(path)-1);
 
-        if (!(content = fopen(path, "r")))
-            continue;
-        fscanf(content, "%s %s %s", fstype, devname, mountpoint);
-        D("%s %s %s\n", fstype, devname, mountpoint);
+        if (0 != parse_cookie(path, fstype, devname, mountpoint)) {
+            ret = -2;
+            goto close;
+        }
+        cookies[cookie_cnt].name        = strdup(ent->d_name);
         cookies[cookie_cnt].fstype      = strdup(fstype);
         cookies[cookie_cnt].devname     = strdup(devname);
         cookies[cookie_cnt].mountpoint  = strdup(mountpoint);
         cookies[cookie_cnt].mounted     = 1;
-        fclose(content);
+        D("%s %s %s %s\n", ent->d_name, fstype, devname, mountpoint);
 
         cookie_cnt++;
     }
 
+close:
     closedir(cookie_root);
 
-    return 0;
+    return ret;
 }
 
 static void quit(void)
@@ -70,11 +129,21 @@ static void quit(void)
     }
 }
 
+static void eject(int idx)
+{
+    char name[PATH_MAX] = COOKIE"/";
+    strncat(name, cookies[idx].name, PATH_MAX);
+    umount(cookies[idx].mountpoint);
+    rmdir(cookies[idx].mountpoint);
+    remove(name);
+    cookies[idx].mounted = 0;
+    D("name: %s\n", name);
+}
+
 static void eject_all(void)
 {
-    for (int i = 0; i < cookie_cnt; i++) {
-        umount(cookies[i].mountpoint);
-    }
+    for (int i = 0; i < cookie_cnt; i++)
+        eject(i);
 }
 
 static void list(void)
@@ -86,29 +155,27 @@ static void list(void)
     }
 }
 
-static void inter_run()
-{
-}
-
 static void help(void)
 {
     printf("Usage: %s [-hl] [<mountpoint> or <no.>]\n", APP);
     printf("usbeject ejects usb device mounted via `usbmount`.\n");
     printf("     -h: show this page\n"
-           "     -l: list all mountpoint\n"
-           "     <mountpoint>: a mountpoint\n"
-           "     <no.>: number of list order\n"
-           "If no argment given, eject all usb device.\n");
+            "     -l: list all mountpoint\n"
+            "     <mountpoint>: a mountpoint\n"
+            "     <no.>: number of list order\n"
+            "If no argment given, eject all usb device.\n");
     printf("%s version %s BSD-2\n", APP, APP_VER);
 }
 
 int main(int argc, char **argv)
 {
-    init();
-    char is_inter = 0;
     char opt;
+    if (0 != init()) {
+        printf("INIT ERROR!\n");
+        return 1;
+    }
 
-    while (-1 != (opt = getopt(argc, argv, "hli"))) {
+    while (-1 != (opt = getopt(argc, argv, "hl"))) {
         switch (opt) {
         case 'h':
             help();
@@ -118,9 +185,6 @@ int main(int argc, char **argv)
             list();
             exit(0);
             break;
-        case 'i':
-            is_inter = 1;
-            break;
         default:
             help();
             break;
@@ -129,20 +193,19 @@ int main(int argc, char **argv)
 
     if (optind < argc) {
         for (int i = optind; i < argc; i++) {
-            if (isdigit(argv[i][0])) {
+            if (isinteger(argv[i])) {
                 int no = atoi(argv[i]);
                 D("<no.>: %d\n", no);
-                if (0 <= no && no < cookie_cnt && cookies[no].mounted) {
-                    umount(cookies[no].mountpoint);
-                    cookies[no].mounted = 0;
-                }
+                no--;   /* begin from 0 */
+                if (0 <= no && no < cookie_cnt && cookies[no].mounted)
+                    eject(no);
             } else {
                 for (int c = 0; c < cookie_cnt; c++) {
-                    if ((strstr(cookies[c].devname, argv[i]) || strstr(cookies[c].mountpoint, argv[i]))
+                    if ((strnstr(cookies[c].devname, strlen(cookies[c].devname), argv[i])
+                                || strnstr(cookies[c].mountpoint, strlen(cookies[c].mountpoint), argv[i]))
                             && cookies[c].mounted) {
                         D("<mountpoint>: %s %s\n", argv[i], cookies[c].mountpoint);
-                        umount(cookies[c].mountpoint);
-                        cookies[c].mounted = 0;
+                        eject(c);
                     }
                 }
             }

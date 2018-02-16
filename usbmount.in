@@ -53,14 +53,14 @@ do_mount() {
     DEVNAME="/dev/$BLKNAME"
 
     DEVINFO=$(/sbin/blkid -p $DEVNAME)
-    USAGE=$(echo "$DEVINFO"  | sed 's/.*[[:blank:]]USAGE="\([^"]*\)".*/\1/g; s/[[:blank:]]*//g;')
+    USAGE=$(echo "$DEVINFO"  | sed -n '/USAGE=/{s/.*[[:blank:]]USAGE="\([^"]*\)".*/\1/g; s/[[:blank:]]*//g; p}')
     if ! echo $USAGE | egrep -q "(filesystem|disklabel)"; then
         log info "$DEVNAME does not contain a filesystem or disklabel"
         exit 1
     fi
-    FSTYPE=$(echo "$DEVINFO" | sed 's/.*[[:blank:]]TYPE="\([^"]*\)".*/\1/g; s/[[:blank:]]*//g;')
-    LABEL=$(echo "$DEVINFO"  | sed 's/.*[[:blank:]]LABEL="\([^"]*\)".*/\1/g')
-    UUID=$(echo "$DEVINFO"   | sed 's/.*[[:blank:]]UUID="\([^"]*\)".*/\1/g; s/[[:blank:]]*//g;')
+    FSTYPE=$(echo "$DEVINFO" | sed -n '/TYPE=/{s/.*[[:blank:]]TYPE="\([^"]*\)".*/\1/g; s/[[:blank:]]*//g; p}')
+    LABEL=$(echo "$DEVINFO"  | sed -n '/LABEL=/{s/.*[[:blank:]]LABEL="\([^"]*\)".*/\1/g; p}')
+    UUID=$(echo "$DEVINFO"   | sed -n '/UUID=/{s/.*[[:blank:]]UUID="\([^"]*\)".*/\1/g; s/[[:blank:]]*//g; p}')
 
     # Try to use specifications in /etc/fstab first.
     if egrep -q "^[[:blank:]]*$DEVNAME" /etc/fstab; then
@@ -89,12 +89,16 @@ do_mount() {
         # Search an available mountpoint.
         mountpoint=
         for v in "$LABEL" "$BLKNAME" "$UUID"; do
+	    if [ -z "$v" ]; then
+	        continue
+	    fi
             v="$MOUNTROOT/$v"
             if [ ! -e "$v" -o -d "$v" ] && ! grep -q "^[^ ][^ ]*  *$v " /proc/mounts; then
                 mountpoint="$v"
                 break
             fi
         done
+
         if [ -z "$mountpoint" ]; then
             log warning "no mountpoint found for $DEVNAME"
             exit 1
@@ -117,10 +121,10 @@ do_mount() {
 
         # Mount the filesystem.
         log info "executing command: mount -t$fstype ${options:+-o$options} $DEVNAME $mountpoint"
-        mount -t$fstype ${options:+-o$options} $DEVNAME $mountpoint
+        mount -t$fstype ${options:+-o$options} "$DEVNAME" "$mountpoint"
 
         # Record this mountpoint
-        echo "$fstype $DEVNAME $mountpoint" > "$COOKIE/$BLKNAME"
+        echo -e "$fstype\n$DEVNAME\n$mountpoint" > "$COOKIE/$BLKNAME"
 
         # Run hook scripts; ignore errors.
         export DEVICE="$DEVNAME"
@@ -135,7 +139,7 @@ do_mount() {
 do_umount() {
     BLKNAME="$1"
     if [ -r "$COOKIE/$BLKNAME" ]; then
-        read fstype devname mountpoint < "$COOKIE/$BLKNAME"
+        read -d '\n' fstype devname mountpoint < "$COOKIE/$BLKNAME"
 
         log info "executing command: umount -Rl $mountpoint"
         # ignore error
