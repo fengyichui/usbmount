@@ -133,7 +133,11 @@ static void eject(int idx)
 {
     char name[PATH_MAX] = COOKIE"/";
     strncat(name, cookies[idx].name, PATH_MAX);
-    umount(cookies[idx].mountpoint);
+    if (-1 == umount(cookies[idx].mountpoint)) {
+        printf("umount %s: %s\n", cookies[idx].mountpoint, strerror(errno));
+        return;
+    }
+
     rmdir(cookies[idx].mountpoint);
     remove(name);
     cookies[idx].mounted = 0;
