@@ -1,7 +1,7 @@
 CC := gcc
 
 PREFIX  := /usr/share/usbmount
-VERSION := 1.1.0
+VERSION := 1.1.1
 COOKIE  := /run/usbmount
 
 INFILES = usbmount@.service usbmount config.h
@@ -17,7 +17,7 @@ $(INFILES): %: %.in
 	@$(SED) $< > $@
 	@echo "GEN $@"
 
-CFLAGS := -MMD -MP -g -O0
+CFLAGS := -MMD -MP -g
 
 SRCS := $(usbeject.c)
 DEPS := $(SRCS:.c=.c.d)
