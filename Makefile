@@ -1,19 +1,19 @@
 CC := gcc
 
 PREFIX  := /usr/share/usbmount
-VERSION := 1.1.2
+VERSION := 1.1.3
 COOKIE  := /run/usbmount
 
-INFILES = usbmount@.service usbmount config.h
+FILES = usbmount@.service usbmount config.h
 
 SED = sed \
 	  -e "s|@PREFIX@|$(PREFIX)|g" \
 	  -e "s|@VERSION@|$(VERSION)|g" \
 	  -e "s|@COOKIE@|$(COOKIE)|g"
 
-all: $(INFILES) usbeject
+all: $(FILES) usbeject
 
-$(INFILES): %: %.in
+$(FILES): %: %.in
 	@$(SED) $< > $@
 	@echo "GEN $@"
 
@@ -33,8 +33,12 @@ usbeject: usbeject.c.o
 	@echo "CC  $@"
 -include $(DEPS)
 
+define rm
+	@$(RM) $(1)
+	@echo "RM $(1)"
+
+endef
 clean:
-	@$(RM) *.o *.d usbeject $(INFILES)
-	@echo "RM *.o *.d usbeject $(INFILES)"
+	$(foreach f,$(sort $(wildcard *.[do]) usbeject $(FILES)),$(call rm,$(f)))
 
 .PHONY: all clean

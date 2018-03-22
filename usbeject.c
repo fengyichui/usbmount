@@ -123,6 +123,7 @@ close:
 static void quit(void)
 {
     for (int i = 0; i < cookie_cnt; i++) {
+        free(cookies[i].name);
         free(cookies[i].devname);
         free(cookies[i].mountpoint);
         free(cookies[i].fstype);
@@ -152,6 +153,11 @@ static void eject_all(void)
 
 static void list(void)
 {
+    if (0 == cookie_cnt) {
+        printf("There is no device mounted.\n");
+        return;
+    }
+
     printf("no.\t%-20s %-20s %-20s\n", "devname", "mountpoint", "fstype");
     for (int i = 0; i < cookie_cnt; i++) {
         printf("%2d.\t%-20s %-20s %-20s\n", i+1,
@@ -164,20 +170,16 @@ static void help(void)
     printf("Usage: %s [-hl] [<mountpoint> or <no.>]\n", APP);
     printf("usbeject ejects usb device mounted via `usbmount`.\n");
     printf("     -h: show this page\n"
-            "     -l: list all mountpoint\n"
-            "     <mountpoint>: a mountpoint\n"
-            "     <no.>: number of list order\n"
-            "If no argment given, eject all usb device.\n");
+           "     -l: list all devices and their mountpoints\n"
+           "     <mountpoint>: a mountpoint\n"
+           "     <no.>: number of order listed\n"
+           "If no argment given, eject all usb devices.\n");
     printf("%s version %s BSD-2\n", APP, APP_VER);
 }
 
 int main(int argc, char **argv)
 {
     char opt;
-    if (0 != init()) {
-        printf("INIT ERROR!\n");
-        return 1;
-    }
 
     while (-1 != (opt = getopt(argc, argv, "hl"))) {
         switch (opt) {
@@ -193,6 +195,11 @@ int main(int argc, char **argv)
             help();
             break;
         }
+    }
+
+    if (0 != init()) {
+        printf("INIT ERROR!\n");
+        return 1;
     }
 
     if (optind < argc) {
