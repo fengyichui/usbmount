@@ -1,7 +1,7 @@
 CC := gcc
 
 PREFIX  := /usr/share/usbmount
-VERSION := 1.1.3
+VERSION := 1.1.4
 COOKIE  := /run/usbmount
 
 FILES = usbmount@.service usbmount config.h

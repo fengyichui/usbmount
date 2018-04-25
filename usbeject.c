@@ -86,22 +86,21 @@ static int init(void)
     int ret = 0;
     DIR *cookie_root = opendir(COOKIE);
     struct dirent *ent;
-    if (!cookie_root) {
-        printf("%s: %s\n", COOKIE, strerror(errno));
-        return -1;
-    }
     cookie_cnt = 0;
+    if (!cookie_root) {
+        printf("[Warn] %s: %s\n", COOKIE, strerror(errno));
+        return 0;
+    }
     while ((ent =  readdir(cookie_root)) != NULL) {
         if (ent->d_type != DT_REG)
             continue;
         /* fstype devname mountpoint */
         char fstype[FSTYPE_LEN], devname[PATH_MAX], mountpoint[PATH_MAX];
-        FILE *content;
         char path[PATH_MAX] = COOKIE"/";
         strncat(path, ent->d_name, PATH_MAX-strlen(path)-1);
 
         if (0 != parse_cookie(path, fstype, devname, mountpoint)) {
-            ret = -2;
+            ret = -1;
             goto close;
         }
         cookies[cookie_cnt].name        = strdup(ent->d_name);
@@ -181,6 +180,11 @@ int main(int argc, char **argv)
 {
     char opt;
 
+    if (0 != init()) {
+        printf("[Error] Init Error, Quit.\n");
+        return 1;
+    }
+
     while (-1 != (opt = getopt(argc, argv, "hl"))) {
         switch (opt) {
         case 'h':
@@ -195,11 +199,6 @@ int main(int argc, char **argv)
             help();
             break;
         }
-    }
-
-    if (0 != init()) {
-        printf("INIT ERROR!\n");
-        return 1;
     }
 
     if (optind < argc) {
