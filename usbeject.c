@@ -153,7 +153,7 @@ static void eject_all(void)
 static void list(void)
 {
     if (0 == cookie_cnt) {
-        printf("There is no device mounted.\n");
+        printf("There is no device mounted at %s.\n", COOKIE);
         return;
     }
 

@@ -13,15 +13,17 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE.
 #
-set -e
-exec > /dev/null 2>&1
+#set -e
+exec &> /dev/null
 
 # Default values for configuration variables.
 ENABLED=1
 MOUNTROOT=/mnt/usb
-FILESYSTEMS=
-MOUNTOPTIONS=
-FS_MOUNTOPTIONS=
+FILESYSTEMS="exfat vfat ext2 ext3 ext4 hfsplus"
+MOUNTOPTIONS="sync,noexec,nodev,noatime,nodiratime"
+FS_MOUNTOPTIONS=\
+"-fstype=exfat,gid=storage,uid=1000 "\
+"-fstype=vfat,gid=storage,uid=1000 "
 VERBOSE=no
 COOKIE=@COOKIE@
 
@@ -45,6 +47,14 @@ in_list() {
     return 1
 }
 
+# Check critical dependent command given by the first parameter
+need_cmd() {
+    if ! which "$1" &> /dev/null; then
+        log err "cannot found dependent command $1."
+        exit 1
+    fi
+}
+
 ######################################################################
 # Main functions
 
@@ -54,13 +64,14 @@ do_mount() {
 
     DEVINFO=$(/sbin/blkid -p $DEVNAME)
     USAGE=$(echo "$DEVINFO"  | sed -n '/USAGE=/{s/.*[[:blank:]]USAGE="\([^"]*\)".*/\1/g; s/[[:blank:]]*//g; p}')
-    if ! echo $USAGE | egrep -q "(filesystem|disklabel)"; then
+    if ! expr "$USAGE" : "filesystem\|disklabel"; then
         log info "$DEVNAME does not contain a filesystem or disklabel"
         exit 1
     fi
-    FSTYPE=$(echo "$DEVINFO" | sed -n '/TYPE=/{s/.*[[:blank:]]TYPE="\([^"]*\)".*/\1/g; s/[[:blank:]]*//g; p}')
-    LABEL=$(echo "$DEVINFO"  | sed -n '/LABEL=/{s/.*[[:blank:]]LABEL="\([^"]*\)".*/\1/g; p}')
-    UUID=$(echo "$DEVINFO"   | sed -n '/UUID=/{s/.*[[:blank:]]UUID="\([^"]*\)".*/\1/g; s/[[:blank:]]*//g; p}')
+    DEVINFO=($(lsblk -o FSTYPE,LABEL,UUID -n $DEVNAME))
+    FSTYPE=${DEVINFO[0]}
+    LABEL=${DEVINFO[1]}
+    UUID=${DEVINFO[2]}
 
     # Try to use specifications in /etc/fstab first.
     if egrep -q "^[[:blank:]]*$DEVNAME" /etc/fstab; then
@@ -89,9 +100,9 @@ do_mount() {
         # Search an available mountpoint.
         mountpoint=
         for v in "$LABEL" "$BLKNAME" "$UUID"; do
-	    if [ -z "$v" ]; then
-	        continue
-	    fi
+            if [ -z "$v" ]; then
+                continue
+            fi
             v="$MOUNTROOT/$v"
             if [ ! -e "$v" -o -d "$v" ] && ! grep -q "^[^ ][^ ]*  *$v " /proc/mounts; then
                 mountpoint="$v"
@@ -142,7 +153,7 @@ do_umount() {
         read -d '\n' fstype devname mountpoint < "$COOKIE/$BLKNAME"
 
         log info "executing command: umount -Rl $mountpoint"
-        # ignore error
+        # Ignore errors.
         umount -Rl "$mountpoint" || :
 
         rm -rf "$COOKIE/$BLKNAME"
@@ -170,13 +181,16 @@ if [ "${ENABLED:-1}" -eq 0 ]; then
     exit 0
 fi
 
-if [ ! -x /sbin/blkid ]; then
-    log err "cannot execute /sbin/blkid"
-    exit 1
-fi
+# Check critical dependent commands
+need_cmd lsblk
+need_cmd blkid
+need_cmd mount
+need_cmd umount
+# ``usbeject'' is offered by this software
+need_cmd usbeject
 
 mkdir -p $COOKIE
-log debug "creating $COOKIE directory"
+log debug "created $COOKIE directory"
 
 umask 022
 
