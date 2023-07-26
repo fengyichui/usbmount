@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+# During purge, also remove the /etc/udev/rules.d/z60_usbmount.rules symlink
+# if it exists.
+if [ "$1" = purge -a -h /etc/udev/rules.d/z60_usbmount.rules ]; then
+    rm -f /etc/udev/rules.d/z60_usbmount.rules
+fi
+
+#DEBHELPER#
+
+exit 0

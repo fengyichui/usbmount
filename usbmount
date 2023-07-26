@@ -19,13 +19,14 @@ exec &> /dev/null
 # Default values for configuration variables.
 ENABLED=1
 MOUNTROOT=/mnt/usb
-FILESYSTEMS="exfat vfat ext2 ext3 ext4 hfsplus"
+FILESYSTEMS="ntfs exfat vfat ext2 ext3 ext4 hfsplus"
 MOUNTOPTIONS="sync,noexec,nodev,noatime,nodiratime"
 FS_MOUNTOPTIONS=\
-"-fstype=exfat,gid=storage,uid=1000 "\
-"-fstype=vfat,gid=storage,uid=1000 "
+"-fstype=exfat,uid=1000,gid=1000,umask=22,fmask=11 "\
+"-fstype=vfat,uid=1000,gid=1000,umask=22,fmask=11 "\
+"-fstype=ntfs,uid=1000,gid=1000,umask=22,fmask=11 "
 VERBOSE=no
-COOKIE=@COOKIE@
+COOKIE=/run/usbmount
 
 ######################################################################
 # Auxiliary functions
@@ -186,8 +187,6 @@ need_cmd lsblk
 need_cmd blkid
 need_cmd mount
 need_cmd umount
-# ``usbeject'' is offered by this software
-need_cmd usbeject
 
 mkdir -p $COOKIE
 log debug "created $COOKIE directory"

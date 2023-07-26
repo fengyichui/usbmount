@@ -2,8 +2,8 @@
 #define CONFIG_H__
 
 #define COOKIE_MAX      128
-#define COOKIE          "@COOKIE@"
-#define APP_VER         "@VERSION@"
+#define COOKIE          "/run/usbmount"
+#define APP_VER         "1.1.5"
 #define APP             "usbeject"
 #define FSTYPE_LEN      64
 

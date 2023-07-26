@@ -41,4 +41,7 @@ endef
 clean:
 	$(foreach f,$(sort $(wildcard *.[do]) usbeject $(FILES)),$(call rm,$(f)))
 
-.PHONY: all clean
+build:
+	@sudo dpkg-buildpackage -us -uc -b
+
+.PHONY: all clean build

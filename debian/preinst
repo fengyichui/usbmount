@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+# If the package is installed, try to create the default mountpoints.
+# Failure to do so is not considered fatal.
+#if [ "$1" = install ]; then
+#fi
+
+#DEBHELPER#
+
+exit 0
