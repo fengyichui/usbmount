@@ -1,5 +1,7 @@
 [Unit]
 Description=Auto Mount USB Drive on /dev/%i
+BindsTo=%i.device
+After=%i.device
 
 [Service]
 Type=oneshot
