@@ -4,18 +4,7 @@ PREFIX  := /usr/share/usbmount
 VERSION := 1.1.5
 COOKIE  := /run/usbmount
 
-FILES = usbmount@.service usbmount config.h
-
-SED = sed \
-	  -e "s|@PREFIX@|$(PREFIX)|g" \
-	  -e "s|@VERSION@|$(VERSION)|g" \
-	  -e "s|@COOKIE@|$(COOKIE)|g"
-
 all: $(FILES) usbeject
-
-$(FILES): %: %.in
-	@$(SED) $< > $@
-	@echo "GEN $@"
 
 CFLAGS := -MMD -MP -g
 
